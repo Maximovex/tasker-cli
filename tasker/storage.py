@@ -56,28 +56,27 @@ def load_tasks(db_path: Path = DEFAULT_DB_PATH) -> list[Task]:
                 continue
     return tasks
 
-def task_to_json_dict(tasks:Task)->dict[str,Any]:
+def task_to_json_dict(t:Task)->dict[str,Any]:
     data = []
-    for t in tasks:
-        d = asdict(t)
+    
+    d = asdict(t)
 
-        if d["due"] is not None:
-            # due is a datetime.date; store as ISO string
-            d["due"] = d["due"].isoformat()
+    if d["due"] is not None:
+        # due is a datetime.date; store as ISO string
+        d["due"] = d["due"].isoformat()
 
-        if d.get("created_at") is not None:        
-            d["created_at"] = d["created_at"].isoformat()
-        else:
-            d["created_at"] = None
+    if d.get("created_at") is not None:        
+        d["created_at"] = d["created_at"].isoformat()
+    else:
+        d["created_at"] = None
 
-        if d.get("completed_at"):
-            d["completed_at"] = d["completed_at"].isoformat()
+    if d.get("completed_at"):
+        d["completed_at"] = d["completed_at"].isoformat()
 
-        data.append(d)
+    data.append(d)
     return d
 
 def save_tasks(tasks: list[Task], db_path: Path = DEFAULT_DB_PATH) -> None:
-
-    data=task_to_json_dict(tasks=tasks)
+    data=[task_to_json_dict(t) for t in tasks]
     with db_path.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
