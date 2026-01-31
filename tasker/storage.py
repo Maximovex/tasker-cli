@@ -65,8 +65,10 @@ def task_to_json_dict(tasks:Task)->dict[str,Any]:
             # due is a datetime.date; store as ISO string
             d["due"] = d["due"].isoformat()
 
-        
-        d["created_at"] = d["created_at"].isoformat()
+        if d.get("created_at") is not None:        
+            d["created_at"] = d["created_at"].isoformat()
+        else:
+            d["created_at"] = None
 
         if d.get("completed_at"):
             d["completed_at"] = d["completed_at"].isoformat()
