@@ -53,15 +53,18 @@ class TaskRepository:
     def close(self) -> None:
         self.conn.close()
 
-    def add_task(self, title: str, *, due: date | None = None, created_at: datetime | None = None) -> Task:
+    def add_task(
+        self, title: str, *, due: date | None = None, created_at: datetime | None = None
+    ) -> Task:
         pass
 
     def update_task(self, t: Task) -> bool:
         pass
-    
+
     def delete(self, tid: int) -> bool:
         pass
-    
+
+
 if __name__ == "__main__":
     repo = TaskRepository(Path("tmp_tasks.db"))
     print(repo.all())
