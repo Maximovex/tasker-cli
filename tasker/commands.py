@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 from .models import Task
-from .storage import save_tasks
+from tasker.storage import save_tasks,load_tasks
 
 
 def next_id(tasks: list[Task]) -> int:
@@ -49,6 +49,30 @@ def mark_done(tasks: list[Task], tid: int, *, db_path: Path) -> str:
             save_tasks(tasks, db_path=db_path)
             return f"Marked #{tid} as done."
     return f"No task with id {tid}"
+
+def mark_undone(tasks: list[Task], tid: int, *, db_path: Path) -> str:
+    for t in tasks:
+        if t.id == tid:
+            if t.done:
+                t.completed_at = None
+                t.done = False
+                save_tasks(tasks, db_path=db_path)
+                return f"Marked #{tid} as not done."   
+                  
+            return f"Task #{tid} is already open."
+        
+    return f"No task with id {tid}"
+
+def clear_done(tasks:list[Task],*,db_path:Path)->str:
+    remaining=[t for t in tasks if not t.done]
+    removed=len(tasks)-len(remaining)
+    if removed==0:
+        return "No completed tasks to remove"
+
+    tasks[:]=remaining
+    save_tasks(tasks=tasks,db_path=db_path)
+
+    return f"Cleared {removed} completed tasks."
 
 
 def delete_task(tasks: list[Task], tid: int, *, db_path: Path) -> str:

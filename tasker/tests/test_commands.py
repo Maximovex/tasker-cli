@@ -1,5 +1,5 @@
 from datetime import date
-from tasker.commands import add_task,mark_done,delete_task,edit_task
+from tasker.commands import add_task,mark_done,delete_task,edit_task,mark_undone,clear_done
 from tasker.storage import load_tasks,save_tasks
 from tasker.models import Task
 
@@ -39,4 +39,15 @@ def test_edit(two_tasks,db_path):
     assert tasks[0].title=="A"
     assert [(t.id,t.title)for t in tasks]==[(1,"A"),(2,"B")]
 
-    
+def test_undone(two_tasks,db_path):
+    tasks = two_tasks
+    tasks[0].done=True
+    mark_undone(tasks,1,db_path=db_path)
+    assert tasks[0].done==False
+
+def test_clear_done(two_tasks,db_path):
+    tasks=two_tasks
+    for t in tasks:
+        t.done=True
+    clear_done(tasks=tasks,db_path=db_path)
+    assert tasks==[]

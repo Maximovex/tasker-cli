@@ -5,8 +5,15 @@ import argparse
 from dataclasses import asdict
 from datetime import date, datetime, timezone
 import json
-from tasker.commands import add_task, delete_task, edit_task, list_tasks, mark_done
-from tasker.storage import load_tasks,task_to_json_dict
+from tasker.commands import (
+    add_task,
+    clear_done,
+    delete_task,
+    edit_task,
+    mark_done,
+    mark_undone,
+)
+from tasker.storage import load_tasks, task_to_json_dict
 from pathlib import Path
 
 USAGE = """\
@@ -47,9 +54,9 @@ def build_parser():
     )
     group.add_argument("--open", action="store_true")
 
-    group2=p_list.add_mutually_exclusive_group()
-    group2.add_argument("--overdue",action="store_true")
-    group2.add_argument("--today",action="store_true")
+    group2 = p_list.add_mutually_exclusive_group()
+    group2.add_argument("--overdue", action="store_true")
+    group2.add_argument("--today", action="store_true")
 
     p_list.add_argument("--reverse", action="store_true", help="Reverse sorting")
 
@@ -60,8 +67,14 @@ def build_parser():
     p_done = sub.add_parser("done")
     p_done.add_argument("id", type=int)
 
+    p_undone = sub.add_parser("undone", help="Mark task as not done")
+    p_undone.add_argument("id", type=int, help="Task id")
+
     p_del = sub.add_parser("delete")
     p_del.add_argument("id", type=int)
+
+    p_clear = sub.add_parser("clear", help="Clear tasks")
+    p_clear.add_argument("--done", action="store_true", help="Clear completed")
 
     return p
 
@@ -96,11 +109,11 @@ def run(argv: list[str]) -> int:
             q = args.search.lower()
             filtered = [t for t in filtered if q in t.title.lower()]
 
-        today=date.today()
+        today = date.today()
         if args.overdue:
-            filtered=[t for t in filtered if t.due and t.due<today and not t.done]
+            filtered = [t for t in filtered if t.due and t.due < today and not t.done]
         elif args.today:
-            filtered=[t for t in filtered if t.due==today]
+            filtered = [t for t in filtered if t.due == today]
 
         if args.sort == "id":
             filtered = sorted(filtered, key=lambda task: task.id, reverse=args.reverse)
@@ -172,6 +185,20 @@ def run(argv: list[str]) -> int:
         msg = edit_task(tasks, tid, new_title, db_path=db_path)
         print(msg)
         return 0 if not msg.startswith("No task") else 1
+    
+    if cmd == "undone":
+        msg = mark_undone(tasks, args.id, db_path=db_path)
+        print(msg)
+        return 0 if not msg.startswith("No task") else 1
+
+    if cmd == "clear":
+        if args.done:
+            msg = clear_done(tasks=tasks, db_path=db_path)
+            print(msg)
+            return 0 if not msg.startswith("No completed") else 1
+        else:
+            print("Use --done to clear completed tasks")
+            return 1
 
     print(f"Unknown command: {cmd}")
     print(USAGE)
