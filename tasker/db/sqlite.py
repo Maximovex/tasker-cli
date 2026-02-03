@@ -60,7 +60,7 @@ class TaskRepository:
         created_at = created_at or datetime.now(timezone.utc)
         created_s = created_at.isoformat()
 
-        due_s = due.isoformat()
+        due_s = due.isoformat() if due else None
         cur = self.conn.execute(
             "INSERT INTO tasks (title,due,created_at) VALUES (?,?,?)",
             (
@@ -203,7 +203,6 @@ class TaskRepository:
 
 if __name__ == "__main__":
     repo = TaskRepository(Path("tmp_tasks.db"))
-    # print(repo.mark_done(4))
-    print(repo.clear_done())
-    print(repo.all())
+    repo.add_task("papa")
+    print(repo.list_filtered(search="papa"))
     repo.close()
