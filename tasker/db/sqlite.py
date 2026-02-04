@@ -190,10 +190,9 @@ class TaskRepository:
         if where:
             sql += " WHERE " + " AND ".join(where)
 
+        order = "ORDER BY id{rev}"
         if sort and sort in sort_map:
-            order = f"ORDER BY {sort_map.get(sort)}"
-        else:
-            order = "ORDER BY id"
+            order = f"ORDER BY {sort_map[sort]}"
 
         sql += " " + order
 
