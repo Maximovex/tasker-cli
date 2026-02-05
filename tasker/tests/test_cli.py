@@ -57,3 +57,40 @@ def test_overdue(two_tasks, db_path):
     assert r.returncode == 0, (r.stdout, r.stderr)
     data = json.loads(r.stdout)
     assert [t["id"] for t in data]==[1]
+
+def test_cli_sqlite(db_sqlite):
+    r1 = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "tasker",
+            "--db",
+            str(db_sqlite),
+            "add",
+            "milk",
+            
+    
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    r2 = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "tasker",
+            "--db",
+            str(db_sqlite),
+            "--format",
+            "json",
+            "list",
+    
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert r1.returncode == 0, (r1.stdout, r1.stderr)
+    assert r2.returncode == 0, (r2.stdout, r2.stderr)
+    data = json.loads(r2.stdout)
+    assert [t["title"] for t in data]==["milk"]

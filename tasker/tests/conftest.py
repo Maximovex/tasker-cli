@@ -8,6 +8,10 @@ from datetime import date,datetime, timedelta, timezone
 def db_path(tmp_path):
     return tmp_path / "tasks.json"
 
+@pytest.fixture
+def db_sqlite(tmp_path):
+    return tmp_path/"tasks.db"
+
 
 @pytest.fixture
 def two_tasks(db_path):

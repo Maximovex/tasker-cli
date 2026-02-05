@@ -15,6 +15,7 @@ from tasker.commands import (
 )
 from tasker.storage import load_tasks, task_to_json_dict
 from pathlib import Path
+from tasker.db import TaskRepository, is_sqlite_path
 
 USAGE = """\
 Usage:
@@ -45,6 +46,7 @@ def build_parser():
     p_list = sub.add_parser("list")
     group = p_list.add_mutually_exclusive_group()
     group.add_argument("--done", action="store_true")
+    group.add_argument("--open", action="store_true")
     p_list.add_argument("--search", metavar="TEXT")
     p_list.add_argument(
         "--sort",
@@ -52,7 +54,6 @@ def build_parser():
         default=None,
         help="Sort list output by id, title, done,completed, created or due date",
     )
-    group.add_argument("--open", action="store_true")
 
     group2 = p_list.add_mutually_exclusive_group()
     group2.add_argument("--overdue", action="store_true")
@@ -87,65 +88,105 @@ def run(argv: list[str]) -> int:
     argcomplete.autocomplete(parser)
     args = parser.parse_args(argv[1:])
     db_path = Path(args.db)
-    tasks = load_tasks(db_path=db_path)
+    sqlite = is_sqlite_path(db_path)
+    
+        
+        
 
     cmd = args.cmd
 
     if cmd == "add":
-
         title = " ".join(args.title)
+        if sqlite:
+            try:
+                due=date.fromisoformat(args.due) if args.due else None
+            except ValueError:
+                print(f"Invalid date format, Use YYYY-MM-DD")
+                return 1
+            repo = TaskRepository(db_path)
+            try:
+                t=repo.add_task(title=title, due=due)
+                print(f"Added #{t.id}: {t.title}")
+                return 0
+            finally:
+                repo.close()
+        tasks = load_tasks(db_path=db_path)
+
         print(add_task(tasks, title, due=args.due, db_path=db_path))
         return 0
 
     if cmd == "list":
-        filtered = tasks
+        if sqlite:
 
-        if args.done:
-            filtered = [t for t in filtered if t.done]
-        elif args.open:
-            filtered = [t for t in filtered if not t.done]
+            show_arg = "done" if args.done else "open" if args.open else "all"
+            try:
+                repo = TaskRepository(db_path)
+                tasks = repo.list_filtered(
+                    show=show_arg,
+                    search=args.search,
+                    sort=args.sort,
+                    reverse=args.reverse,
+                    overdue=args.overdue,
+                    today=args.today,
+                )
+                filtered = tasks
+            finally:
+                repo.close()
+        else:
+            tasks = load_tasks(db_path=db_path)
 
-        if args.search:
-            q = args.search.lower()
-            filtered = [t for t in filtered if q in t.title.lower()]
+            filtered = tasks
 
-        today = date.today()
-        if args.overdue:
-            filtered = [t for t in filtered if t.due and t.due < today and not t.done]
-        elif args.today:
-            filtered = [t for t in filtered if t.due == today]
+            if args.done:
+                filtered = [t for t in filtered if t.done]
+            elif args.open:
+                filtered = [t for t in filtered if not t.done]
 
-        if args.sort == "id":
-            filtered = sorted(filtered, key=lambda task: task.id, reverse=args.reverse)
-        elif args.sort == "title":
-            filtered = sorted(
-                filtered, key=lambda task: task.title.lower(), reverse=args.reverse
-            )
-        elif args.sort == "done":
-            filtered = sorted(
-                filtered, key=lambda task: task.done, reverse=args.reverse
-            )
-        elif args.sort == "due":
-            filtered = sorted(
-                filtered,
-                key=lambda task: (task.due is None, task.due or date.max),
-                reverse=args.reverse,
-            )
-        elif args.sort == "created":
-            filtered = sorted(
-                filtered,
-                key=lambda task: task.created_at,
-                reverse=args.reverse,
-            )
-        elif args.sort == "completed":
-            filtered = sorted(
-                filtered,
-                key=lambda task: (
-                    task.completed_at is None,
-                    task.completed_at or datetime.max.replace(tzinfo=timezone.utc),
-                ),
-                reverse=args.reverse,
-            )
+            if args.search:
+                q = args.search.lower()
+                filtered = [t for t in filtered if q in t.title.lower()]
+
+            today = date.today()
+            if args.overdue:
+                filtered = [
+                    t for t in filtered if t.due and t.due < today and not t.done
+                ]
+            elif args.today:
+                filtered = [t for t in filtered if t.due == today]
+
+            if args.sort == "id":
+                filtered = sorted(
+                    filtered, key=lambda task: task.id, reverse=args.reverse
+                )
+            elif args.sort == "title":
+                filtered = sorted(
+                    filtered, key=lambda task: task.title.lower(), reverse=args.reverse
+                )
+            elif args.sort == "done":
+                filtered = sorted(
+                    filtered, key=lambda task: task.done, reverse=args.reverse
+                )
+            elif args.sort == "due":
+                filtered = sorted(
+                    filtered,
+                    key=lambda task: (task.due is None, task.due or date.max),
+                    reverse=args.reverse,
+                )
+            elif args.sort == "created":
+                filtered = sorted(
+                    filtered,
+                    key=lambda task: task.created_at,
+                    reverse=args.reverse,
+                )
+            elif args.sort == "completed":
+                filtered = sorted(
+                    filtered,
+                    key=lambda task: (
+                        task.completed_at is None,
+                        task.completed_at or datetime.max.replace(tzinfo=timezone.utc),
+                    ),
+                    reverse=args.reverse,
+                )
 
         if args.format == "table":
             if not filtered:
@@ -185,7 +226,7 @@ def run(argv: list[str]) -> int:
         msg = edit_task(tasks, tid, new_title, db_path=db_path)
         print(msg)
         return 0 if not msg.startswith("No task") else 1
-    
+
     if cmd == "undone":
         msg = mark_undone(tasks, args.id, db_path=db_path)
         print(msg)

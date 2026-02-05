@@ -57,11 +57,11 @@ def load_tasks(db_path: Path = DEFAULT_DB_PATH) -> list[Task]:
     return tasks
 
 def task_to_json_dict(t:Task)->dict[str,Any]:
-    data = []
+    
     
     d = asdict(t)
 
-    if d["due"] is not None:
+    if d.get("due") is not None:
         # due is a datetime.date; store as ISO string
         d["due"] = d["due"].isoformat()
 
@@ -73,7 +73,7 @@ def task_to_json_dict(t:Task)->dict[str,Any]:
     if d.get("completed_at"):
         d["completed_at"] = d["completed_at"].isoformat()
 
-    data.append(d)
+    
     return d
 
 def save_tasks(tasks: list[Task], db_path: Path = DEFAULT_DB_PATH) -> None:

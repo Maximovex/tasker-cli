@@ -4,6 +4,8 @@ from pathlib import Path
 
 from tasker.models import Task
 
+def is_sqlite_path(p:Path):
+    return p.suffix.lower() in {".db",".sqlite",".sqlite3"}
 
 class TaskRepository:
     def __init__(self, db_path: Path):
@@ -190,7 +192,7 @@ class TaskRepository:
         if where:
             sql += " WHERE " + " AND ".join(where)
 
-        order = "ORDER BY id{rev}"
+        order = f"ORDER BY id{rev}"
         if sort and sort in sort_map:
             order = f"ORDER BY {sort_map[sort]}"
 
@@ -202,6 +204,6 @@ class TaskRepository:
 
 if __name__ == "__main__":
     repo = TaskRepository(Path("tmp_tasks.db"))
-    repo.add_task("papa")
+    
     print(repo.list_filtered(search="papa"))
     repo.close()
