@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 import argparse
-from dataclasses import asdict
 from datetime import date, datetime, timezone
 import json
 from tasker.commands import (
@@ -13,6 +12,7 @@ from tasker.commands import (
     mark_done,
     mark_undone,
 )
+from tasker.models import Task
 from tasker.storage import load_tasks, task_to_json_dict
 from pathlib import Path
 from tasker.db import TaskRepository, is_sqlite_path
@@ -89,23 +89,19 @@ def run(argv: list[str]) -> int:
     args = parser.parse_args(argv[1:])
     db_path = Path(args.db)
     sqlite = is_sqlite_path(db_path)
-    
-        
-        
-
     cmd = args.cmd
 
     if cmd == "add":
         title = " ".join(args.title)
         if sqlite:
             try:
-                due=date.fromisoformat(args.due) if args.due else None
+                due = date.fromisoformat(args.due) if args.due else None
             except ValueError:
                 print(f"Invalid date format, Use YYYY-MM-DD")
                 return 1
             repo = TaskRepository(db_path)
             try:
-                t=repo.add_task(title=title, due=due)
+                t = repo.add_task(title=title, due=due)
                 print(f"Added #{t.id}: {t.title}")
                 return 0
             finally:
@@ -211,6 +207,34 @@ def run(argv: list[str]) -> int:
     if cmd in {"done", "delete"}:
 
         tid = args.id
+        if sqlite:
+            if cmd == "done":
+                repo = TaskRepository(db_path)
+                try:
+                    status = repo.mark_done(tid)
+                    if status == "updated":
+                        print(f"Task #{tid} updated")
+                    elif status == "already":
+                        print(f"Task #{tid} already done")
+                    elif status == "missing":
+                        print(f"No task #{tid}")
+
+                    return 0 if not status == "missing" else 1
+                finally:
+                    repo.close()
+            elif cmd == "delete":
+                repo = TaskRepository(db_path)
+                try:
+                    status = repo.delete(tid)
+                    if status:
+                        print(f"Task #{tid} deleted")
+                        return 0
+                    else:
+                        print(f"No task #{tid}")
+                        return 1
+
+                finally:
+                    repo.close()
         msg = (
             mark_done(tasks, tid, db_path=db_path)
             if cmd == "done"
@@ -223,17 +247,53 @@ def run(argv: list[str]) -> int:
 
         tid = args.id
         new_title = " ".join(args.title)
+        if sqlite:
+            repo=TaskRepository(db_path)
+            try:
+                ok=repo.update_task(Task(id=tid,title=new_title))
+                if ok:
+                    print(f"Task #{tid} updated with title: {new_title}")
+                    return 0
+                else:
+                    print(f"No task #{tid}, nothing to update")
+                    return 1
+            finally:
+                repo.close()
+        tasks=load_tasks(db_path)
         msg = edit_task(tasks, tid, new_title, db_path=db_path)
         print(msg)
         return 0 if not msg.startswith("No task") else 1
 
     if cmd == "undone":
-        msg = mark_undone(tasks, args.id, db_path=db_path)
+        tid = args.id
+
+        if sqlite:
+            repo=TaskRepository(db_path)
+            try:
+                ok=repo.mark_undone(tid)
+                if ok:
+                    print(f"Task #{tid} set undone")
+                    return 0
+                else:
+                    print(f"No task with #{tid}")
+                    return 1
+            finally:
+                repo.close()
+        tasks=load_tasks(db_path)
+        msg = mark_undone(tasks, tid, db_path=db_path)
         print(msg)
         return 0 if not msg.startswith("No task") else 1
 
     if cmd == "clear":
         if args.done:
+            if sqlite:
+                repo=TaskRepository(db_path)
+                try:    
+                    count=repo.clear_done()
+                    print(f"{count} tasks were cleared")
+                    return 0
+                finally:
+                    repo.close()
             msg = clear_done(tasks=tasks, db_path=db_path)
             print(msg)
             return 0 if not msg.startswith("No completed") else 1

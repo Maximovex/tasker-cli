@@ -123,6 +123,10 @@ class TaskRepository:
             return "already"
         else:
             return "missing"
+        
+    def get_by_id(self,tid:int)->Task|None:
+        row=self.conn.execute("SELECT * FROM tasks WHERE id=?",(tid,)).fetchone()
+        return self._row_to_task(row)
 
     def mark_undone(self, tid: int) -> str:
 
