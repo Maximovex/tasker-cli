@@ -148,11 +148,3 @@ eval "$(register-python-argcomplete tasker)"
 ```
 
 ---
-
-## Running Tests
-
-Run the test suite using `pytest`:
-
-```bash
-pytest
-```
